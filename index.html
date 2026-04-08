@@ -44,33 +44,52 @@
 
     <dialog id="dialogAdd" class="dialog">
       <form id="formAdd" method="dialog" class="dialogBody">
-        <div class="dialogTitle">materials に新規登録</div>
+        <div class="dialogHeader">
+          <div class="dialogTitle">新規登録</div>
+        </div>
 
         <div class="formGrid">
           <label class="field">
             <span class="label">記号</span>
-            <input name="symbol" type="text" required autocomplete="off" />
+            <select name="symbol" required>
+              <option value="">選択してください</option>
+              <option value="GWP">GWP</option>
+              <option value="RWP">RWP</option>
+            </select>
           </label>
-          <label class="field">
-            <span class="label">口径</span>
-            <input name="diameter" type="number" step="0.001" min="0" required />
-          </label>
-          <label class="field">
-            <span class="label">厚み</span>
-            <input name="thickness" type="number" step="0.001" min="0" required />
-          </label>
+          <div class="dtGroup" aria-label="口径と厚み">
+            <label class="field">
+              <span class="label">口径</span>
+              <div class="inputWithUnit">
+                <input name="diameter" type="text" inputmode="numeric" required autocomplete="off" />
+                <span class="unitSuffix" aria-hidden="true">A</span>
+              </div>
+            </label>
+            <label class="field">
+              <span class="label">厚み</span>
+              <div class="inputWithUnit">
+                <input name="thickness" type="text" inputmode="numeric" required autocomplete="off" />
+                <span class="unitSuffix" aria-hidden="true">t</span>
+              </div>
+            </label>
+          </div>
           <label class="field">
             <span class="label">表被仕様</span>
-            <input name="coating_type" type="text" autocomplete="off" />
+            <select name="coating_type">
+              <option value="">選択なし</option>
+              <option value="ALK">ALK</option>
+              <option value="ALKPE">ALKPE</option>
+              <option value="ALGC">ALGC</option>
+            </select>
           </label>
           <label class="field">
             <span class="label">数量</span>
-            <input name="quantity" type="number" step="1" min="0" required />
+            <input name="quantity" type="text" inputmode="numeric" required autocomplete="off" />
           </label>
         </div>
 
         <div class="dialogActions">
-          <button value="cancel" class="btn">キャンセル</button>
+          <button id="btnDialogCancel" type="button" class="btn">キャンセル</button>
           <button id="btnSubmitAdd" value="default" class="btn btnPrimary" type="submit">
             登録
           </button>

@@ -8,7 +8,7 @@ const COLUMNS = [
   { label: "厚み", key: "thickness" },
   { label: "表被仕様", key: "coating_type" },
   { label: "数量", key: "quantity", align: "num" },
-  { label: "更新日時", key: "updated_at" },
+  { label: "更新日", key: "updated_at" },
 ];
 
 const elGroupContainer = document.getElementById("groupContainer");
@@ -18,6 +18,10 @@ const btnAddRow = document.getElementById("btnAddRow");
 const dialogAdd = document.getElementById("dialogAdd");
 const formAdd = document.getElementById("formAdd");
 const btnSubmitAdd = document.getElementById("btnSubmitAdd");
+const btnDialogCancel = document.getElementById("btnDialogCancel");
+const numericInputs = Array.from(
+  formAdd.querySelectorAll("input[name='diameter'], input[name='thickness'], input[name='quantity']")
+);
 
 let allRows = [];
 let sortState = { key: null, direction: "none" };
@@ -266,13 +270,27 @@ function openAddDialog() {
   if (!dialogAdd) return;
   formAdd.reset();
   dialogAdd.showModal();
-  const first = formAdd.querySelector("input[name='symbol']");
+  const first = formAdd.querySelector("select[name='symbol']");
   if (first) first.focus();
+}
+
+function closeAddDialog() {
+  formAdd.reset();
+  dialogAdd.close();
+}
+
+function normalizeIntegerText(text) {
+  // 全角数字を半角へ
+  const half = String(text || "").replace(/[０-９]/g, (ch) =>
+    String.fromCharCode(ch.charCodeAt(0) - 0xfee0)
+  );
+  // 数字以外を削除（小数点も削除）
+  return half.replace(/[^0-9]/g, "");
 }
 
 function readNumber(formData, name) {
   const raw = formData.get(name);
-  const n = Number(raw);
+  const n = Number.parseInt(String(raw), 10);
   if (Number.isNaN(n)) return null;
   return n;
 }
@@ -329,6 +347,21 @@ elGroupContainer.addEventListener("click", (e) => {
 btnAddRow.addEventListener("click", () => {
   openAddDialog();
 });
+
+btnDialogCancel.addEventListener("click", () => {
+  closeAddDialog();
+});
+
+dialogAdd.addEventListener("close", () => {
+  formAdd.reset();
+});
+
+for (const input of numericInputs) {
+  input.addEventListener("input", (ev) => {
+    const next = normalizeIntegerText(ev.target.value);
+    ev.target.value = next;
+  });
+}
 
 formAdd.addEventListener("submit", async (ev) => {
   ev.preventDefault();

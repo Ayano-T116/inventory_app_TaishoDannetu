@@ -24,7 +24,7 @@ const numericInputs = Array.from(
 );
 
 let allRows = [];
-let sortState = { key: null, direction: "none" };
+let sortStateBySymbol = {};
 
 function setStatus(message, kind = "info") {
   if (!elStatus) return;
@@ -65,16 +65,19 @@ function compareValues(a, b, key) {
   return String(a).localeCompare(String(b), "ja");
 }
 
-function getSortedRows(rows) {
-  if (!sortState.key || sortState.direction === "none") return [...rows];
+/** ソート状態を見てテーブル内の表示順を調整 */
+function getSortedRows(symbol, rows) {
 
-  const dir = sortState.direction === "asc" ? 1 : -1;
+  const state = sortStateBySymbol[symbol];
+  if (!state || state.direction === "none") return [...rows];
+
+  const dir = state.direction === "asc" ? 1 : -1;
   return [...rows].sort((left, right) => {
-    return compareValues(left[sortState.key], right[sortState.key], sortState.key) * dir;
+    return compareValues(left[state.key], right[state.key], state.key) * dir;
   });
 }
 
-/** symbol ごとに行をまとめる */
+/** symbol ごとにまとめる (記号:[]),(記号:[]),...の形にしてる*/
 function groupBySymbol(rows) {
   const map = new Map();
   for (const row of rows) {
@@ -85,21 +88,23 @@ function groupBySymbol(rows) {
   return map;
 }
 
-function updateHeaderSortMark() {
-  const headers = document.querySelectorAll(".grid thead th[data-key]");
+/** header行のソートマークを制御する */
+function updateHeaderSortMark(sym, thead) {
+  const headers = thead.querySelectorAll("th[data-key]");
   for (const th of headers) {
     const key = th.dataset.key;
     const mark = th.querySelector(".sortMark");
     th.classList.remove("sorted");
     if (!mark) continue;
 
-    if (key !== sortState.key || sortState.direction === "none") {
+    const state = sortStateBySymbol[sym];
+    if (!state || key !== state.key || state.direction === "none") {
       mark.textContent = "-";
       continue;
     }
 
     th.classList.add("sorted");
-    mark.textContent = sortState.direction === "asc" ? "▲" : "▼";
+    mark.textContent = state.direction === "asc" ? "▲" : "▼";
   }
 }
 
@@ -138,6 +143,7 @@ function appendCells(tr, row) {
     td.tabIndex = 0;
     if (col.align === "num") td.classList.add("num");
 
+    //更新日時を整形する
     const v = formatValue(col.key, row[col.key]);
 
     if (col.key === "diameter" || col.key === "thickness") {
@@ -155,9 +161,6 @@ function appendCells(tr, row) {
       td.textContent = v;
     }
 
-    if (col.key === "updated_at") {
-      td.textContent = v;
-    }
     tr.appendChild(td);
   }
 }
@@ -174,14 +177,19 @@ function renderGroups() {
     return;
   }
 
+  // symbol ごとにまとめる (記号:[]),(記号:[]),...という形のmapにしてる
   const bySymbol = groupBySymbol(allRows);
+  //記号はあいうえお順にしてる
   const symbols = [...bySymbol.keys()].sort((a, b) => a.localeCompare(b, "ja"));
 
+  // 記号ごとにテーブル作成処理
   for (const sym of symbols) {
-    const rowsInGroup = getSortedRows(bySymbol.get(sym));
+    //mapの内容に入ってた[]を取り出す
+    const rowsInGroup = getSortedRows(sym, bySymbol.get(sym));
 
     const section = document.createElement("section");
     section.className = "groupBlock";
+    section.setAttribute("data-symbol", sym);
 
     const titleRow = document.createElement("div");
     titleRow.className = "groupTitleRow";
@@ -216,9 +224,11 @@ function renderGroups() {
     const thead = document.createElement("thead");
     thead.appendChild(createHeaderRow());
 
+    //1行ずつ作成
     const tbody = document.createElement("tbody");
     for (const row of rowsInGroup) {
       const tr = document.createElement("tr");
+      tr.dataset.id = row["id"];
       appendCells(tr, row);
       tbody.appendChild(tr);
     }
@@ -232,27 +242,33 @@ function renderGroups() {
     section.appendChild(titleRow);
     section.appendChild(innerWrap);
     elGroupContainer.appendChild(section);
-  }
 
-  updateHeaderSortMark();
+    //カラム名行のソートマークの表示
+    updateHeaderSortMark(sym, thead);
+
+  }
 }
 
+//DBデータ取得以外の描画処理※ソートから使用
 function rerenderWithSort() {
   renderGroups();
 }
 
+/** 毎回呼ばれる最初の処理 */
 async function fetchMaterials() {
   setStatus("読み込み中...");
   btnRefresh.disabled = true;
 
   try {
+    //DBからデータ取得
     const { data, error } = await supabase
       .from(TABLE)
-      .select("symbol,diameter,thickness,coating_type,quantity,updated_at")
+      .select("id,symbol,diameter,thickness,coating_type,quantity,updated_at")
       .order("updated_at", { ascending: false });
 
     if (error) throw error;
 
+    //画面表示
     allRows = data || [];
     rerenderWithSort();
     setStatus("");
@@ -265,6 +281,8 @@ async function fetchMaterials() {
     btnRefresh.disabled = false;
   }
 }
+
+/** 新規登録ダイアログ関連の処理 */
 
 function openAddDialog() {
   if (!dialogAdd) return;
@@ -320,7 +338,7 @@ btnRefresh.addEventListener("click", () => {
   fetchMaterials();
 });
 
-// 動的に増えるヘッダは親で委譲
+/** カラム名が押下された場合の処理 */
 elGroupContainer.addEventListener("click", (e) => {
   const btn = e.target.closest(".thBtn");
   if (!btn || !elGroupContainer.contains(btn)) return;
@@ -328,18 +346,29 @@ elGroupContainer.addEventListener("click", (e) => {
   const th = btn.closest("th[data-key]");
   if (!th) return;
 
+  // どの記号(section)のthが押されたかを取得
+  const section = th.closest("section[data-symbol]");
+  const symbol = section ? section.dataset.symbol : undefined;
+  if (symbol === undefined) return;
+
   const key = th.dataset.key;
   if (!key) return;
 
-  if (sortState.key !== key) {
-    sortState = { key, direction: "asc" };
-  } else if (sortState.direction === "asc") {
-    sortState = { key, direction: "desc" };
-  } else if (sortState.direction === "desc") {
-    sortState = { key: null, direction: "none" };
+  //symbolごと、カラムごとにソート状態を設定
+  const current = sortStateBySymbol[symbol] || { key: null, direction: "none" };
+  let newSortState;
+  if (current.key !== key) {
+    newSortState = { key, direction: "asc" };
+  } else if (current.direction === "asc") {
+    newSortState = { key, direction: "desc" };
+  } else if (current.direction === "desc") {
+    newSortState = { key, direction: "none" };
   } else {
-    sortState = { key, direction: "asc" };
+    newSortState = { key, direction: "asc" };
   }
+
+  sortStateBySymbol[symbol] = newSortState;
+
 
   rerenderWithSort();
 });

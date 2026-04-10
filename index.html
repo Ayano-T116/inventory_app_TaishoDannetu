@@ -1,105 +1,136 @@
 <!doctype html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>在庫管理（materials）</title>
-    <link rel="stylesheet" href="./style.css" />
-  </head>
-  <body>
-    <div class="app">
-      <header class="header">
-        <div class="title">
-          <h1>在庫管理</h1>
-          <p class="subtitle">Supabase / materials</p>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>在庫管理（materials）</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="title">
+        <h1>在庫管理</h1>
+        <p class="subtitle">Supabase / materials</p>
+      </div>
+
+      <div class="toolbar">
+        <button id="btnRefresh" class="btn">更新</button>
+        <button id="btnDelete" class="btn btnDanger" type="button">削除</button>
+        <button id="btnAddRow" class="btn btnPrimary">新規行を追加</button>
+        <span id="status" class="status" aria-live="polite"></span>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="sheet">
+
+        <div class="tableWrap" role="region" aria-label="在庫一覧">
+          <div id="groupContainer" class="groupContainer"></div>
         </div>
-
-        <div class="toolbar">
-          <button id="btnRefresh" class="btn">更新</button>
-          <button id="btnAddRow" class="btn btnPrimary">新規行を追加</button>
-          <span id="status" class="status" aria-live="polite"></span>
-        </div>
-      </header>
-
-      <main class="main">
-        <section class="sheet">
-
-          <div class="tableWrap" role="region" aria-label="在庫一覧">
-            <div id="groupContainer" class="groupContainer"></div>
-          </div>
-          <!-- 
+        <!-- 
             この要素はスクリーンリーダー（視覚障害者向け補助技術）でのみ読み上げられる案内文です。
             視覚的には表示されませんが、アクセシビリティ向上のために存在しています。
           -->
-          <p id="gridHelp" class="srOnly">
-            在庫一覧です。記号ごとにテーブルが並びます。数量のセルに直接入力し、更新ボタンを押してください。上部のボタンから新規行登録ができます。
-          </p>
-        </section>
-      </main>
-
-      <footer class="footer">
-        <span>HTML / CSS / JavaScript（Reactなし）</span>
-      </footer>
-    </div>
-
-    <dialog id="dialogAdd" class="dialog">
-      <form id="formAdd" method="dialog" class="dialogBody">
-        <div class="dialogHeader">
-          <div class="dialogTitle">新規登録</div>
-        </div>
-
-        <div class="formGrid">
-          <label class="field">
-            <span class="label">記号</span>
-            <select name="symbol" required>
-              <option value="">選択してください</option>
-              <option value="GWP">GWP</option>
-              <option value="RWP">RWP</option>
-            </select>
-          </label>
-          <div class="dtGroup" aria-label="口径と厚み">
-            <label class="field">
-              <span class="label">口径</span>
-              <div class="inputWithUnit">
-                <input name="diameter" type="text" inputmode="numeric" required autocomplete="off" />
-                <span class="unitSuffix" aria-hidden="true">A</span>
-              </div>
-            </label>
-            <label class="field">
-              <span class="label">厚み</span>
-              <div class="inputWithUnit">
-                <input name="thickness" type="text" inputmode="numeric" required autocomplete="off" />
-                <span class="unitSuffix" aria-hidden="true">t</span>
-              </div>
-            </label>
-          </div>
-          <label class="field">
-            <span class="label">表被仕様</span>
-            <select name="coating_type">
-              <option value="">選択なし</option>
-              <option value="ALK">ALK</option>
-              <option value="ALKPE">ALKPE</option>
-              <option value="ALGC">ALGC</option>
-            </select>
-          </label>
-          <label class="field">
-            <span class="label">数量</span>
-            <input name="quantity" type="text" inputmode="numeric" required autocomplete="off" />
-          </label>
-        </div>
-
-        <div class="dialogActions">
-          <button id="btnDialogCancel" type="button" class="btn">キャンセル</button>
-          <button id="btnSubmitAdd" value="default" class="btn btnPrimary" type="submit">
-            登録
-          </button>
-        </div>
-        <p class="dialogNote">
-          ※ 更新日は自動で入力されます。
+        <p id="gridHelp" class="srOnly">
+          在庫一覧です。記号ごとにテーブルが並びます。数量のセルに直接入力し、更新ボタンを押してください。上部のボタンから新規行登録ができます。
         </p>
-      </form>
-    </dialog>
+      </section>
+    </main>
 
-    <script type="module" src="./main.js"></script>
-  </body>
+    <footer class="footer">
+      <span>HTML / CSS / JavaScript（Reactなし）</span>
+    </footer>
+  </div>
+
+  <!-- 新規登録ダイアログ -->
+  <dialog id="dialogAdd" class="dialog">
+    <form id="formAdd" method="dialog" class="dialogBody">
+      <div class="dialogHeader">
+        <div class="dialogTitle">新規登録</div>
+      </div>
+      <div class="formGrid">
+        <label class="field">
+          <span class="label">記号</span>
+          <select name="symbol" required>
+            <option value="">選択してください</option>
+            <option value="GWP">GWP</option>
+            <option value="RWP">RWP</option>
+          </select>
+        </label>
+        <div class="dtGroup" aria-label="口径と厚み">
+          <label class="field">
+            <span class="label">口径</span>
+            <div class="inputWithUnit">
+              <input name="diameter" type="text" inputmode="numeric" required autocomplete="off" />
+              <span class="unitSuffix" aria-hidden="true">A</span>
+            </div>
+          </label>
+          <label class="field">
+            <span class="label">厚み</span>
+            <div class="inputWithUnit">
+              <input name="thickness" type="text" inputmode="numeric" required autocomplete="off" />
+              <span class="unitSuffix" aria-hidden="true">t</span>
+            </div>
+          </label>
+        </div>
+        <label class="field">
+          <span class="label">表被仕様</span>
+          <select name="coating_type">
+            <option value="">選択なし</option>
+            <option value="ALK">ALK</option>
+            <option value="ALKPE">ALKPE</option>
+            <option value="ALGC">ALGC</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">数量</span>
+          <input name="quantity" type="text" inputmode="numeric" required autocomplete="off" />
+        </label>
+      </div>
+      <div class="dialogActions">
+        <button id="btnDialogCancel" type="button" class="btn">キャンセル</button>
+        <button id="btnSubmitAdd" value="default" class="btn btnPrimary" type="submit">
+          登録
+        </button>
+      </div>
+      <p class="dialogNote">
+        ※ 更新日は自動で入力されます。
+      </p>
+    </form>
+  </dialog>
+
+  <!-- 削除ダイアログ -->
+  <dialog id="dialogDelete" class="dialog">
+    <form id="formDelete" method="dialog" class="dialogBody">
+      <div class="dialogHeader">
+        <div class="dialogTitle">削除</div>
+      </div>
+
+      <div class="deleteSummary muted" id="deleteSummary"></div>
+
+      <div class="deleteListWrap">
+        <table class="deleteList" aria-label="削除対象一覧">
+          <thead>
+            <tr>
+              <th>材料</th>
+              <th class="num">数量</th>
+            </tr>
+          </thead>
+          <tbody id="deleteListBody"></tbody>
+        </table>
+      </div>
+
+      <div class="dialogActions">
+        <button id="btnDeleteCancel" type="button" class="btn">キャンセル</button>
+        <button id="btnDeleteOk" value="default" class="btn btnDanger" type="submit">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./main.js"></script>
+</body>
+
 </html>

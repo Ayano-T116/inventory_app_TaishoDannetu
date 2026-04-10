@@ -14,17 +14,25 @@ const COLUMNS = [
 const elGroupContainer = document.getElementById("groupContainer");
 const elStatus = document.getElementById("status");
 const btnRefresh = document.getElementById("btnRefresh");
+const btnDelete = document.getElementById("btnDelete");
 const btnAddRow = document.getElementById("btnAddRow");
 const dialogAdd = document.getElementById("dialogAdd");
 const formAdd = document.getElementById("formAdd");
 const btnSubmitAdd = document.getElementById("btnSubmitAdd");
 const btnDialogCancel = document.getElementById("btnDialogCancel");
+const dialogDelete = document.getElementById("dialogDelete");
+const formDelete = document.getElementById("formDelete");
+const deleteSummary = document.getElementById("deleteSummary");
+const deleteListBody = document.getElementById("deleteListBody");
+const btnDeleteCancel = document.getElementById("btnDeleteCancel");
+const btnDeleteOk = document.getElementById("btnDeleteOk");
 const numericInputs = Array.from(
   formAdd.querySelectorAll("input[name='diameter'], input[name='thickness'], input[name='quantity']")
 );
 
 let allRows = [];
 let sortStateBySymbol = {};
+let checkedIds = [];
 
 function setStatus(message, kind = "info") {
   if (!elStatus) return;
@@ -63,6 +71,30 @@ function compareValues(a, b, key) {
     return new Date(a).getTime() - new Date(b).getTime();
   }
   return String(a).localeCompare(String(b), "ja");
+}
+
+function toId(value) {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function isChecked(id) {
+  const sid = toId(id);
+  return !!sid && checkedIds.includes(sid);
+}
+
+function setChecked(id, nextChecked) {
+  const sid = toId(id);
+  if (!sid) return;
+  if (nextChecked) {
+    if (!checkedIds.includes(sid)) checkedIds = [...checkedIds, sid];
+  } else {
+    checkedIds = checkedIds.filter((x) => x !== sid);
+  }
+}
+
+function updateDeleteButtonState() {
+  if (!btnDelete) return;
+  btnDelete.disabled = checkedIds.length === 0;
 }
 
 /** ソート状態を見てテーブル内の表示順を調整 */
@@ -111,6 +143,13 @@ function updateHeaderSortMark(sym, thead) {
 /** ヘッダ行を作成する */
 function createHeaderRow() {
   const tr = document.createElement("tr");
+
+  const thCheck = document.createElement("th");
+  thCheck.className = "checkCell";
+  thCheck.setAttribute("aria-label", "選択");
+  thCheck.textContent = "選択";
+  tr.appendChild(thCheck);
+
   for (const col of COLUMNS) {
     const th = document.createElement("th");
     th.dataset.key = col.key;
@@ -132,11 +171,24 @@ function createHeaderRow() {
     th.appendChild(btn);
     tr.appendChild(th);
   }
+
   return tr;
 }
 
 /** セルを作成する */
 function appendCells(tr, row) {
+
+  const tdCheck = document.createElement("td");
+  tdCheck.className = "checkCell";
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.className = "rowCheck";
+  cb.checked = isChecked(row["id"]);
+  cb.setAttribute("aria-label", "この行を選択");
+  cb.dataset.id = toId(row["id"]);
+  tdCheck.appendChild(cb);
+  tr.appendChild(tdCheck);
+
   for (const col of COLUMNS) {
     const td = document.createElement("td");
     td.classList.add("cell");
@@ -258,6 +310,7 @@ function rerenderWithSort() {
 async function fetchMaterials() {
   setStatus("読み込み中...");
   btnRefresh.disabled = true;
+  if (btnDelete) btnDelete.disabled = true;
 
   try {
     //DBからデータ取得
@@ -270,6 +323,10 @@ async function fetchMaterials() {
 
     //画面表示
     allRows = data || [];
+    // 既に存在しないIDは除外（削除後など）
+    const existing = new Set(allRows.map((r) => toId(r.id)));
+    checkedIds = checkedIds.filter((id) => existing.has(id));
+    updateDeleteButtonState();
     rerenderWithSort();
     setStatus("");
   } catch (e) {
@@ -278,7 +335,8 @@ async function fetchMaterials() {
     allRows = [];
     renderGroups();
   } finally {
-    btnRefresh.disabled = false;
+    // btnRefresh.disabled = false;
+    updateDeleteButtonState();
   }
 }
 
@@ -317,6 +375,7 @@ async function insertMaterial(payload) {
   setStatus("登録中...");
   btnSubmitAdd.disabled = true;
   btnAddRow.disabled = true;
+  if (btnDelete) btnDelete.disabled = true;
 
   try {
     const { error } = await supabase.from(TABLE).insert(payload);
@@ -331,6 +390,74 @@ async function insertMaterial(payload) {
   } finally {
     btnSubmitAdd.disabled = false;
     btnAddRow.disabled = false;
+    updateDeleteButtonState();
+  }
+}
+
+function formatMaterialText(row) {
+  const sym = String(row.symbol || "").trim();
+  const d = row.diameter == null ? "" : `${row.diameter}A`;
+  const t = row.thickness == null ? "" : `${row.thickness}t`;
+  const c = String(row.coating_type || "").trim();
+  const dt = `${d}${t}`.trim();
+  const left = [sym, dt].filter(Boolean).join(" ").trim();
+  return [left, c].filter(Boolean).join(" ").trim();
+}
+
+function openDeleteDialog() {
+  if (!dialogDelete || !deleteListBody) return;
+  if (!checkedIds.length) return;
+
+  const selected = allRows.filter((r) => checkedIds.includes(toId(r.id)));
+  deleteListBody.innerHTML = "";
+
+  if (deleteSummary) deleteSummary.textContent = `${selected.length}件を削除します。よろしいですか？`;
+
+  for (const row of selected) {
+    const tr = document.createElement("tr");
+    const tdMat = document.createElement("td");
+    tdMat.textContent = formatMaterialText(row);
+    const tdQty = document.createElement("td");
+    tdQty.className = "num";
+    tdQty.textContent = row.quantity == null ? "" : String(row.quantity);
+    tr.appendChild(tdMat);
+    tr.appendChild(tdQty);
+    deleteListBody.appendChild(tr);
+  }
+
+  dialogDelete.showModal();
+}
+
+function closeDeleteDialog() {
+  if (!dialogDelete) return;
+  dialogDelete.close();
+}
+
+async function deleteMaterialsByIds(ids) {
+  if (!ids.length) return;
+  setStatus("削除中...");
+  if (btnDeleteOk) btnDeleteOk.disabled = true;
+  if (btnDeleteCancel) btnDeleteCancel.disabled = true;
+  if (btnDelete) btnDelete.disabled = true;
+  if (btnAddRow) btnAddRow.disabled = true;
+  if (btnRefresh) btnRefresh.disabled = true;
+
+  try {
+    const { error } = await supabase.from(TABLE).delete().in("id", ids);
+    if (error) throw error;
+
+    checkedIds = [];
+    closeDeleteDialog();
+    await fetchMaterials();
+  } catch (e) {
+    console.error(e);
+    setStatus(`削除エラー: ${e.message || e}`, "error");
+  } finally {
+    if (btnDeleteOk) btnDeleteOk.disabled = false;
+    if (btnDeleteCancel) btnDeleteCancel.disabled = false;
+    updateDeleteButtonState();
+    if (btnAddRow) btnAddRow.disabled = false;
+    if (btnRefresh) btnRefresh.disabled = false;
   }
 }
 
@@ -371,6 +498,15 @@ elGroupContainer.addEventListener("click", (e) => {
 
 
   rerenderWithSort();
+});
+
+// 行チェックON/OFF
+elGroupContainer.addEventListener("change", (e) => {
+  const cb = e.target.closest("input.rowCheck");
+  if (!cb || !elGroupContainer.contains(cb)) return;
+  const id = cb.dataset.id;
+  setChecked(id, cb.checked);
+  updateDeleteButtonState();
 });
 
 btnAddRow.addEventListener("click", () => {
@@ -416,5 +552,28 @@ formAdd.addEventListener("submit", async (ev) => {
   await insertMaterial(payload);
 });
 
+if (btnDelete) {
+  btnDelete.addEventListener("click", () => {
+    if (!checkedIds.length) return;
+    openDeleteDialog();
+  });
+}
+
+if (btnDeleteCancel) {
+  btnDeleteCancel.addEventListener("click", () => {
+    // キャンセル時はチェック状態を維持し、再描画もしない
+    closeDeleteDialog();
+  });
+}
+
+if (formDelete) {
+  formDelete.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!checkedIds.length) return;
+    await deleteMaterialsByIds([...checkedIds]);
+  });
+}
+
 /** 初期化 ここからスタート */
+updateDeleteButtonState();
 fetchMaterials();

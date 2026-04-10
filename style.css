@@ -79,6 +79,16 @@ body {
   transition: transform 0.04s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled:active {
+  transform: none;
+  box-shadow: none;
+}
+
 .btn:hover {
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(15, 23, 48, 0.92);
@@ -96,6 +106,16 @@ body {
 .btnPrimary:hover {
   background: linear-gradient(180deg, rgba(37, 99, 235, 1), rgba(29, 78, 216, 1));
   border-color: rgba(37, 99, 235, 0.9);
+}
+
+.btnDanger {
+  background: linear-gradient(180deg, rgba(180, 35, 24, 0.96), rgba(138, 21, 15, 0.96));
+  border-color: rgba(180, 35, 24, 0.7);
+}
+
+.btnDanger:hover {
+  background: linear-gradient(180deg, rgba(180, 35, 24, 1), rgba(138, 21, 15, 1));
+  border-color: rgba(180, 35, 24, 0.9);
 }
 
 .status {
@@ -262,6 +282,19 @@ table.grid {
   font-variant-numeric: tabular-nums;
 }
 
+.grid td.checkCell,
+.grid thead th.checkCell {
+  text-align: center;
+  min-width: 50px;
+  font-size: smaller;
+}
+
+.rowCheck {
+  width: 10px;
+  height: 10px;
+  accent-color: var(--accent);
+}
+
 .thBtn {
   appearance: none;
   width: 100%;
@@ -277,6 +310,7 @@ table.grid {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  font-size: smaller;
 }
 
 .thBtnNum {
@@ -442,6 +476,48 @@ select:focus {
   margin: 10px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.deleteSummary {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.deleteListWrap {
+  border: 1px solid var(--grid);
+  border-radius: 10px;
+  overflow: auto;
+  max-height: min(320px, 55vh);
+  background: #fff;
+}
+
+.deleteList {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.deleteList th,
+.deleteList td {
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--grid);
+}
+
+.deleteList th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f3f4f6;
+  color: #111827;
+  font-weight: 800;
+  text-align: left;
+}
+
+.deleteList th.num,
+.deleteList td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 640px) {

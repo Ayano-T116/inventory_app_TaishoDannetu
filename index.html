@@ -130,6 +130,34 @@
     </form>
   </dialog>
 
+  <!-- 数量変更ダイアログ -->
+  <dialog id="dialogQuantityChange" class="dialog">
+    <form id="formQuantityChange" method="dialog" class="dialogBody">
+      <div class="dialogHeader">
+        <div class="dialogTitle">数量変更</div>
+      </div>
+
+      <div class="deleteSummary muted" id="quantityChangeSummary"></div>
+
+      <div class="deleteListWrap">
+        <table class="deleteList" aria-label="数量変更対象一覧">
+          <thead>
+            <tr>
+              <th>材料</th>
+              <th class="num">数量</th>
+            </tr>
+          </thead>
+          <tbody id="quantityChangeListBody"></tbody>
+        </table>
+      </div>
+
+      <div class="dialogActions">
+        <button id="btnQuantityChangeCancel" type="button" class="btn">キャンセル</button>
+        <button id="btnQuantityChangeOk" value="default" class="btn btnPrimary" type="submit">OK</button>
+      </div>
+    </form>
+  </dialog>
+
   <script type="module" src="./main.js"></script>
 </body>
 

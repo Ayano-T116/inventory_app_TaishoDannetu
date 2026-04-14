@@ -26,6 +26,12 @@ const deleteSummary = document.getElementById("deleteSummary");
 const deleteListBody = document.getElementById("deleteListBody");
 const btnDeleteCancel = document.getElementById("btnDeleteCancel");
 const btnDeleteOk = document.getElementById("btnDeleteOk");
+const dialogQuantityChange = document.getElementById("dialogQuantityChange");
+const formQuantityChange = document.getElementById("formQuantityChange");
+const quantityChangeSummary = document.getElementById("quantityChangeSummary");
+const quantityChangeListBody = document.getElementById("quantityChangeListBody");
+const btnQuantityChangeCancel = document.getElementById("btnQuantityChangeCancel");
+const btnQuantityChangeOk = document.getElementById("btnQuantityChangeOk");
 const numericInputs = Array.from(
   formAdd.querySelectorAll("input[name='diameter'], input[name='thickness'], input[name='quantity']")
 );
@@ -33,6 +39,8 @@ const numericInputs = Array.from(
 let allRows = [];
 let sortStateBySymbol = {};
 let checkedIds = [];
+// 数量編集の未保存変更（行id + 変更後quantity）
+let quantityChanges = [];
 
 function setStatus(message, kind = "info") {
   if (!elStatus) return;
@@ -95,6 +103,29 @@ function setChecked(id, nextChecked) {
 function updateDeleteButtonState() {
   if (!btnDelete) return;
   btnDelete.disabled = checkedIds.length === 0;
+}
+
+function updateRefreshButtonState() {
+  if (!btnRefresh) return;
+  btnRefresh.disabled = quantityChanges.length === 0;
+}
+
+function getQuantityChange(id) {
+  const sid = toId(id);
+  if (!sid) return null;
+  return quantityChanges.find((x) => x.id === sid) || null;
+}
+
+function setQuantityChange(id, quantity) {
+  const sid = toId(id);
+  if (!sid) return;
+  quantityChanges = quantityChanges.filter((x) => x.id !== sid);
+  if (quantity == null) {
+    updateRefreshButtonState();
+    return;
+  }
+  quantityChanges = [...quantityChanges, { id: sid, quantity: Number(quantity) }];
+  updateRefreshButtonState();
 }
 
 /** ソート状態を見てテーブル内の表示順を調整 */
@@ -194,6 +225,7 @@ function appendCells(tr, row) {
     td.classList.add("cell");
     td.tabIndex = 0;
     if (col.align === "num") td.classList.add("num");
+    if (col.key === "quantity") td.dataset.editable = "quantity";
 
     //更新日時を整形する
     const v = formatValue(col.key, row[col.key]);
@@ -209,6 +241,10 @@ function appendCells(tr, row) {
       wrap.appendChild(valueSpan);
       wrap.appendChild(unitSpan);
       td.appendChild(wrap);
+    } else if (col.key === "quantity") {
+      const pending = getQuantityChange(row.id);
+      if (pending) td.classList.add("cellQuantityChanged");
+      td.textContent = pending ? String(pending.quantity) : v;
     } else {
       td.textContent = v;
     }
@@ -326,7 +362,11 @@ async function fetchMaterials() {
     // 既に存在しないIDは除外（削除後など）
     const existing = new Set(allRows.map((r) => toId(r.id)));
     checkedIds = checkedIds.filter((id) => existing.has(id));
+    quantityChanges = quantityChanges.filter((c) =>
+      existing.has(toId(c.id))
+    );
     updateDeleteButtonState();
+    updateRefreshButtonState();
     rerenderWithSort();
     setStatus("");
   } catch (e) {
@@ -335,7 +375,7 @@ async function fetchMaterials() {
     allRows = [];
     renderGroups();
   } finally {
-    // btnRefresh.disabled = false;
+    updateRefreshButtonState();
     updateDeleteButtonState();
   }
 }
@@ -391,6 +431,7 @@ async function insertMaterial(payload) {
     btnSubmitAdd.disabled = false;
     btnAddRow.disabled = false;
     updateDeleteButtonState();
+    updateRefreshButtonState();
   }
 }
 
@@ -403,6 +444,8 @@ function formatMaterialText(row) {
   const left = [sym, dt].filter(Boolean).join(" ").trim();
   return [left, c].filter(Boolean).join(" ").trim();
 }
+
+/** 削除ダイアログ関連の処理 */
 
 function openDeleteDialog() {
   if (!dialogDelete || !deleteListBody) return;
@@ -419,7 +462,12 @@ function openDeleteDialog() {
     tdMat.textContent = formatMaterialText(row);
     const tdQty = document.createElement("td");
     tdQty.className = "num";
-    tdQty.textContent = row.quantity == null ? "" : String(row.quantity);
+    const pending = getQuantityChange(row.id);
+    tdQty.textContent = pending
+      ? String(pending.quantity)
+      : row.quantity == null
+        ? ""
+        : String(row.quantity);
     tr.appendChild(tdMat);
     tr.appendChild(tdQty);
     deleteListBody.appendChild(tr);
@@ -457,11 +505,254 @@ async function deleteMaterialsByIds(ids) {
     if (btnDeleteCancel) btnDeleteCancel.disabled = false;
     updateDeleteButtonState();
     if (btnAddRow) btnAddRow.disabled = false;
-    if (btnRefresh) btnRefresh.disabled = false;
+    updateRefreshButtonState();
   }
 }
 
-btnRefresh.addEventListener("click", () => {
+/** 数量変更ダイアログ関連の処理 */
+
+function closeQuantityChangeDialog() {
+  if (!dialogQuantityChange) return;
+  dialogQuantityChange.close();
+}
+
+function openQuantityChangeDialog() {
+  if (!dialogQuantityChange || !quantityChangeListBody) return;
+  if (!quantityChanges.length) return;
+
+  const items = quantityChanges
+    .map((ch) => {
+      const row = allRows.find((r) => toId(r.id) === ch.id);
+      if (!row) return null;
+      return {
+        row,
+        before: row.quantity == null ? "" : String(row.quantity),
+        after: String(ch.quantity),
+      };
+    })
+    .filter(Boolean);
+
+  quantityChangeListBody.innerHTML = "";
+  if (quantityChangeSummary) {
+    quantityChangeSummary.textContent = `${items.length}件の数量を変更します。よろしいですか？`;
+  }
+
+  for (const item of items) {
+    const tr = document.createElement("tr");
+    const tdMat = document.createElement("td");
+    tdMat.textContent = `${formatMaterialText(item.row)}`;
+    const tdQty = document.createElement("td");
+    tdQty.className = "num";
+    tdQty.textContent = `${item.before} → ${item.after}`;
+    tr.appendChild(tdMat);
+    tr.appendChild(tdQty);
+    quantityChangeListBody.appendChild(tr);
+  }
+
+  dialogQuantityChange.showModal();
+}
+
+async function updateQuantities() {
+  if (!quantityChanges.length) return;
+  setStatus("数量を更新中...");
+
+  if (btnQuantityChangeOk) btnQuantityChangeOk.disabled = true;
+  if (btnQuantityChangeCancel) btnQuantityChangeCancel.disabled = true;
+  if (btnDelete) btnDelete.disabled = true;
+  if (btnAddRow) btnAddRow.disabled = true;
+  if (btnRefresh) btnRefresh.disabled = true;
+
+  try {
+    const existing = new Set(allRows.map((r) => toId(r.id)));
+    const payload = quantityChanges
+      .filter((c) => existing.has(toId(c.id)))
+      .map(({ id, quantity }) => ({
+        id,
+        quantity,
+      }));
+
+    if (!payload.length) {
+      setStatus("更新対象が見つかりません。", "error");
+      return;
+    }
+
+    quantityChanges = quantityChanges.filter((c) =>
+      existing.has(toId(c.id))
+    );
+
+
+    for(const pl of payload){
+      
+      const { error } = await supabase
+      .from(TABLE)
+      .update(pl)
+      .eq('id', pl.id);
+
+    if (error) throw error;
+    }
+
+    quantityChanges = [];
+    closeQuantityChangeDialog();
+    await fetchMaterials();
+    setStatus("");
+  } catch (e) {
+    console.error(e);
+    setStatus(`更新エラー: ${e.message || e}`, "error");
+  } finally {
+    if (btnQuantityChangeOk) btnQuantityChangeOk.disabled = false;
+    if (btnQuantityChangeCancel) btnQuantityChangeCancel.disabled = false;
+    if (btnAddRow) btnAddRow.disabled = false;
+    if (btnRefresh) updateRefreshButtonState();
+    if (btnDelete) updateDeleteButtonState();
+  }
+}
+
+function openQuantityCellEditor(td, row) {
+  if (!td || !row) return;
+
+  const id = toId(row.id);
+  const original =
+    row.quantity == null ? null : Number.parseInt(String(row.quantity), 10);
+  const pending = getQuantityChange(row.id);
+  const start = pending ? pending.quantity : original;
+  const fixedWidth = `${Math.ceil(td.getBoundingClientRect().width)}px`;
+  td.style.width = fixedWidth;
+  td.style.minWidth = fixedWidth;
+  td.style.maxWidth = fixedWidth;
+
+  const restoreCellWidth = () => {
+    td.style.width = "";
+    td.style.minWidth = "";
+    td.style.maxWidth = "";
+  };
+
+  td.innerHTML = "";
+
+  const input = document.createElement("input");
+  input.className = "quantityEditor";
+  input.type = "text";
+  input.setAttribute("inputmode", "numeric");
+  input.autocomplete = "off";
+  input.value = start == null ? "" : String(start);
+
+  td.appendChild(input);
+  input.focus();
+  input.select();
+
+  const setCellChangedClass = (isChanged) => {
+    td.classList.toggle("cellQuantityChanged", isChanged);
+  };
+
+  const syncStateFromValue = () => {
+    const normalized = normalizeIntegerText(input.value);
+    if (input.value !== normalized) input.value = normalized;
+
+    if (normalized === "") {
+      setQuantityChange(id, null);
+      setCellChangedClass(false);
+      return;
+    }
+
+    const next = Number.parseInt(normalized, 10);
+    if (Number.isNaN(next)) {
+      setQuantityChange(id, null);
+      setCellChangedClass(false);
+      return;
+    }
+
+    if (original != null && next === original) {
+      setQuantityChange(id, null);
+      setCellChangedClass(false);
+      return;
+    }
+
+    setQuantityChange(id, next);
+    setCellChangedClass(true);
+  };
+
+  input.addEventListener("input", () => {
+    syncStateFromValue();
+  });
+
+  let committed = false;
+  const commitAndExit = () => {
+    if (committed) return;
+    committed = true;
+
+    const normalized = normalizeIntegerText(input.value);
+
+    if (normalized === "") {
+      setQuantityChange(id, null);
+      setCellChangedClass(false);
+      td.innerHTML = "";
+      td.textContent = original == null ? "" : String(original);
+      restoreCellWidth();
+      return;
+    }
+
+    const next = Number.parseInt(normalized, 10);
+    const isOriginal = original != null && next === original;
+
+    if (isOriginal) {
+      setQuantityChange(id, null);
+      setCellChangedClass(false);
+    } else {
+      setQuantityChange(id, next);
+      setCellChangedClass(true);
+    }
+
+    td.innerHTML = "";
+    td.textContent = isOriginal
+      ? original == null
+        ? ""
+        : String(original)
+      : String(next);
+    restoreCellWidth();
+  };
+
+  input.addEventListener("blur", commitAndExit);
+
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      input.blur();
+      return;
+    }
+
+    if (ev.key === "Escape") {
+      ev.preventDefault();
+      committed = true;
+
+      const revert = start;
+      const revertIsOriginal = original != null && revert === original;
+
+      if (revertIsOriginal || revert == null) {
+        setQuantityChange(id, null);
+        setCellChangedClass(false);
+        td.innerHTML = "";
+        td.textContent = original == null ? "" : String(original);
+        restoreCellWidth();
+      } else {
+        setQuantityChange(id, revert);
+        setCellChangedClass(true);
+        td.innerHTML = "";
+        td.textContent = String(revert);
+        restoreCellWidth();
+      }
+    }
+  });
+}
+
+/** イベント系 */
+
+btnRefresh.addEventListener("click", async () => {
+  const activeEditor = elGroupContainer.querySelector("input.quantityEditor");
+  if (activeEditor) activeEditor.blur();
+
+  if (quantityChanges.length) {
+    openQuantityChangeDialog();
+    return;
+  }
   fetchMaterials();
 });
 
@@ -507,6 +798,23 @@ elGroupContainer.addEventListener("change", (e) => {
   const id = cb.dataset.id;
   setChecked(id, cb.checked);
   updateDeleteButtonState();
+});
+
+// 数量セルのクリックで編集inputへ置換
+elGroupContainer.addEventListener("click", (e) => {
+  const td = e.target.closest("td[data-editable='quantity']");
+  if (!td || !elGroupContainer.contains(td)) return;
+  if (td.querySelector("input.quantityEditor")) return;
+
+  const tr = td.closest("tr[data-id]");
+  if (!tr) return;
+
+  const id = toId(tr.dataset.id);
+  const row = allRows.find((r) => toId(r.id) === id);
+  if (!row) return;
+
+  openQuantityCellEditor(td, row);
+  updateRefreshButtonState();
 });
 
 btnAddRow.addEventListener("click", () => {
@@ -574,6 +882,22 @@ if (formDelete) {
   });
 }
 
+if (btnQuantityChangeCancel) {
+  btnQuantityChangeCancel.addEventListener("click", () => {
+    // キャンセル時はデータ更新・再描画しない
+    closeQuantityChangeDialog();
+  });
+}
+
+if (formQuantityChange) {
+  formQuantityChange.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!quantityChanges.length) return;
+    await updateQuantities();
+  });
+}
+
 /** 初期化 ここからスタート */
 updateDeleteButtonState();
+updateRefreshButtonState();
 fetchMaterials();

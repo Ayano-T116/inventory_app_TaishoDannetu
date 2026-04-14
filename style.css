@@ -277,6 +277,27 @@ table.grid {
   background: #f9fafb;
 }
 
+.grid td.cellQuantityChanged {
+  background: #fff3cd;
+}
+
+.grid tbody tr:hover td.cellQuantityChanged {
+  background: #fff3cd;
+}
+
+.cell.cellQuantityChanged:focus {
+  background: #fff3cd;
+}
+
+.grid td input.quantityEditor {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 70px;
+  max-width: 100%;
+  text-align: right;
+}
+
 .grid td.num {
   text-align: right;
   font-variant-numeric: tabular-nums;

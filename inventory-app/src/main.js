@@ -173,7 +173,7 @@ function updateHeaderSortMark(sym, thead) {
 }
 
 /** ヘッダ行を作成する */
-function createHeaderRow() {
+function createHeaderRow(sym) {
   const tr = document.createElement("tr");
 
   const thCheck = document.createElement("th");
@@ -192,7 +192,11 @@ function createHeaderRow() {
     btn.className = col.align === "num" ? "thBtn thBtnNum" : "thBtn";
 
     const labelSpan = document.createElement("span");
-    labelSpan.textContent = col.label;
+    if (col.key === "diameter" ) {
+      labelSpan.textContent = selectSymbols.find((item) => item.value === sym)?.diameterLabel;
+    }else{
+      labelSpan.textContent = col.label;
+    }
     const markSpan = document.createElement("span");
     markSpan.className = "sortMark";
     markSpan.setAttribute("aria-hidden", "true");
@@ -238,7 +242,11 @@ function appendCells(tr, row) {
       valueSpan.textContent = v;
       const unitSpan = document.createElement("span");
       unitSpan.className = "unit";
-      unitSpan.textContent = col.key === "diameter" ? "A" : "t";
+      if (col.key === "diameter") {
+        unitSpan.textContent = selectSymbols.find((item) => item.value === row.symbol)?.diameterSuffix || "A";
+      }else{
+        unitSpan.textContent = "t";
+      }
       wrap.appendChild(valueSpan);
       wrap.appendChild(unitSpan);
       td.appendChild(wrap);
@@ -311,7 +319,7 @@ function renderGroups() {
     });
 
     const thead = document.createElement("thead");
-    thead.appendChild(createHeaderRow());
+    thead.appendChild(createHeaderRow(sym));
 
     //1行ずつ作成
     const tbody = document.createElement("tbody");
@@ -387,7 +395,7 @@ const selectSymbols = [
   {value: "", label: "選択してください", diameterLabel: "口径", diameterSuffix: "A"},
   {value: "GW", label: "GW", diameterLabel: "口径", diameterSuffix: "A"},
   {value: "RW", label: "RW", diameterLabel: "口径", diameterSuffix: "A"},
-  {value: "スチロール", label: "スチロール", diameterLabel: "密度", diameterSuffix: "k"},
+  {value: "スチロール", label: "スチロール", diameterLabel: "口径", diameterSuffix: "A"},
   {value: "GWロール", label: "GWロール", diameterLabel: "密度", diameterSuffix: "k"},
   {value: "RWロール", label: "RWロール", diameterLabel: "密度", diameterSuffix: "k"},
 ];

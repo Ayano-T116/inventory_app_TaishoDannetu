@@ -35,6 +35,7 @@ const btnQuantityChangeOk = document.getElementById("btnQuantityChangeOk");
 const numericInputs = Array.from(
   formAdd.querySelectorAll("input[name='diameter'], input[name='thickness'], input[name='quantity']")
 );
+const selectSymbol = document.getElementById("selectSymbol");
 
 let allRows = [];
 let sortStateBySymbol = {};
@@ -382,10 +383,20 @@ async function fetchMaterials() {
 
 /** 新規登録ダイアログ関連の処理 */
 
+const selectSymbols = [
+  {value: "", label: "選択してください", diameterLabel: "口径", diameterSuffix: "A"},
+  {value: "GW", label: "GW", diameterLabel: "口径", diameterSuffix: "A"},
+  {value: "RW", label: "RW", diameterLabel: "口径", diameterSuffix: "A"},
+  {value: "スチロール", label: "スチロール", diameterLabel: "密度", diameterSuffix: "k"},
+  {value: "GWロール", label: "GWロール", diameterLabel: "密度", diameterSuffix: "k"},
+  {value: "RWロール", label: "RWロール", diameterLabel: "密度", diameterSuffix: "k"},
+];
+
 function openAddDialog() {
   if (!dialogAdd) return;
   formAdd.reset();
   dialogAdd.showModal();
+  createSymbolOptions();
   const first = formAdd.querySelector("select[name='symbol']");
   if (first) first.focus();
 }
@@ -393,6 +404,25 @@ function openAddDialog() {
 function closeAddDialog() {
   formAdd.reset();
   dialogAdd.close();
+}
+
+function createSymbolOptions() {
+  const select = document.querySelector("select[name='symbol']");
+  if (!select) return;
+  selectSymbols.forEach(({ value, label }) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    select.appendChild(option);
+  });
+}
+
+function createDiameterTexts(symbol) {
+  const diameterLabel = document.getElementById("diameterLabel");
+  const diameterSuffix = document.getElementById("diameterSuffix");
+  const texts = selectSymbols.find(({ value }) => value === symbol);
+  diameterLabel.textContent = texts.diameterLabel;
+  diameterSuffix.textContent = texts.diameterSuffix;
 }
 
 function normalizeIntegerText(text) {
@@ -896,6 +926,10 @@ if (formQuantityChange) {
     await updateQuantities();
   });
 }
+
+selectSymbol.addEventListener("change", (ev) => {
+  createDiameterTexts(ev.target.value);
+});
 
 /** 初期化 ここからスタート */
 updateDeleteButtonState();

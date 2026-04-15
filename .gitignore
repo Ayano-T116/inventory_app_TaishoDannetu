@@ -1,9 +1,0 @@
-.DS_Store
-
-# env (もし使うなら)
-.env
-.env.*
-
-# editor
-.vscode/
-.idea/

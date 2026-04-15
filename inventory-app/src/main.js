@@ -1,17 +1,5 @@
 import { supabase } from "./supabase.js";
-
-const TABLE = "materials";
-
-const env = import.meta.env.VITE_ENV || "";
-
-// テーブル内に表示する列（symbol はタイトルに出すので列には含めない）
-const COLUMNS = [
-  { label: "口径", key: "diameter" },
-  { label: "厚み", key: "thickness" },
-  { label: "表被仕様", key: "coating_type" },
-  { label: "数量", key: "quantity", align: "num" },
-  { label: "更新日", key: "updated_at" },
-];
+import  { TABLE, COLUMNS, selectSymbols, ENV, prodMessage, devMessage} from "./utils/constants.js";
 
 const elGroupContainer = document.getElementById("groupContainer");
 const elStatus = document.getElementById("status");
@@ -381,10 +369,10 @@ async function fetchMaterials() {
     updateRefreshButtonState();
     rerenderWithSort();
     setStatus("");
-    if(env === "prod"){
-      subtitle.textContent = `大正断熱専用です。部外者は触るんじゃねぇ。`;
+    if(ENV === "prod"){
+      subtitle.textContent = prodMessage;
     }else{
-      subtitle.textContent = `デモバージョンです。ご自由に操作ください。`;
+      subtitle.textContent = devMessage;
     }
   } catch (e) {
     console.error(e);
@@ -398,15 +386,6 @@ async function fetchMaterials() {
 }
 
 /** 新規登録ダイアログ関連の処理 */
-
-const selectSymbols = [
-  {value: "", label: "選択してください", diameterLabel: "口径", diameterSuffix: "A"},
-  {value: "GW", label: "GW", diameterLabel: "口径", diameterSuffix: "A"},
-  {value: "RW", label: "RW", diameterLabel: "口径", diameterSuffix: "A"},
-  {value: "スチロール", label: "スチロール", diameterLabel: "口径", diameterSuffix: "A"},
-  {value: "GWロール", label: "GWロール", diameterLabel: "密度", diameterSuffix: "k"},
-  {value: "RWロール", label: "RWロール", diameterLabel: "密度", diameterSuffix: "k"},
-];
 
 function openAddDialog() {
   if (!dialogAdd) return;

@@ -1,6 +1,7 @@
-import { updateItem } from "../db.js";
+// import { updateItem } from "../db.js";
 import { helpers } from "../utils/helpers.js";
 import { state, useState } from "../utils/state.js";
+import { createQuantityChangeData, updateMaterialsQuantity } from "../services/materialService.js";
 
 export function initQuantityDialog({
     dialogQuantityChange,
@@ -22,17 +23,7 @@ export function initQuantityDialog({
         if (!dialogQuantityChange || !quantityChangeListBody) return;
         if (!state.quantityChanges.length) return;
 
-        const items = state.quantityChanges
-            .map((ch) => {
-                const row = state.allRows.find((r) => helpers.toId(r.id) === ch.id);
-                if (!row) return null;
-                return {
-                    row,
-                    before: row.quantity == null ? "" : String(row.quantity),
-                    after: String(ch.quantity),
-                };
-            })
-            .filter(Boolean);
+        const items = createQuantityChangeData(state.allRows, state.quantityChanges);
 
         quantityChangeListBody.innerHTML = "";
         if (quantityChangeSummary) {
@@ -63,7 +54,6 @@ export function initQuantityDialog({
 
     // 数量変更を更新する関数
     async function updateQuantities() {
-        if (!state.quantityChanges.length) return;
         setStatus("数量を更新中...");
 
         if (btnQuantityChangeOk) btnQuantityChangeOk.disabled = true;
@@ -73,32 +63,7 @@ export function initQuantityDialog({
         if (btnRefresh) btnRefresh.disabled = true;
 
         try {
-            const existing = new Set(state.allRows.map((r) => helpers.toId(r.id)));
-            const payload = state.quantityChanges
-                .filter((c) => existing.has(helpers.toId(c.id)))
-                .map(({ id, quantity }) => ({
-                    id,
-                    quantity,
-                }));
-
-            if (!payload.length) {
-                setStatus("更新対象が見つかりません。", "error");
-                return;
-            }
-
-            state.quantityChanges = state.quantityChanges.filter((c) =>
-                existing.has(helpers.toId(c.id))
-            );
-
-
-            for (const pl of payload) {
-                const { error } = await updateItem(pl);
-                if (error) {
-                    alert("データを更新できませんでした。");
-                    throw error;
-                }
-            }
-
+            await updateMaterialsQuantity(state.allRows, state.quantityChanges);
             btnRefresh.disabled = useState.clearQuantityChanges();
             closeQuantityChangeDialog();
             await fetchMaterials();

@@ -1,4 +1,4 @@
-import { addItem, deleteItem } from "../db.js";
+import { addItem, deleteItem, updateItem } from "../db.js";
 import { helpers } from "../utils/helpers.js";
 
 
@@ -56,12 +56,63 @@ export function createSelectedDate(allRows, checkedIds) {
 
 //DB削除処理
 export async function deleteMaterialsByIds(ids) {
-    if (!ids.length) 
+    if (!ids.length)
         throw new Error("削除対象がありません。");
 
     const { error } = await deleteItem(ids);
     if (error) {
         alert("データを削除できませんでした。");
         throw error;
+    }
+}
+
+
+/**数量変更ダイアログ関連のロジック */
+
+//数量変更情報の作成
+export function createQuantityChangeData(allRows, quantityChanges) {
+    const items = quantityChanges
+        .map((ch) => {
+            const row = allRows.find((r) => helpers.toId(r.id) === ch.id);
+            if (!row) return null;
+            return {
+                row,
+                before: row.quantity == null ? "" : String(row.quantity),
+                after: String(ch.quantity),
+            };
+        })
+        .filter(Boolean);
+    return items;
+}
+
+//DB更新処理
+export async function updateMaterialsQuantity(allRows, quantityChanges) {
+
+    if (!quantityChanges.length) 
+        throw new Error("更新対象がありません。");
+
+    const existing = new Set(allRows.map((r) => helpers.toId(r.id)));
+    const payload = quantityChanges
+        .filter((c) => existing.has(helpers.toId(c.id)))
+        .map(({ id, quantity }) => ({
+            id,
+            quantity,
+        }));
+
+    if (!payload.length) {
+        throw new Error("更新対象が見つかりません。");
+    }
+
+    quantityChanges = quantityChanges.filter((c) =>
+        existing.has(helpers.toId(c.id))
+    );
+
+
+    for (const pl of payload) {
+        const { error } = await updateItem(pl);
+        if (error) {
+            alert("データを更新できませんでした。");
+            throw error;
+        }
     }
 }
